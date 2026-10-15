@@ -11,6 +11,30 @@ let cachedBlogs = null;
 let lastFetchTime = 0;
 const CACHE_TTL = 30 * 1000; // 30 seconds
 
+// Pre-resolved metadata cache for Google Drive image file names (improves SEO & Google Image search rankings for CEO)
+const DRIVE_FILE_NAME_CACHE = {
+  '11ZpZfZQGM1ldDLRu6LMvA0_sTs-eFpd8': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(5).png',
+  '1VFv4n5JhpfN6h2mKFZ4ie3lCFIT589IG': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay.png',
+  '1_qFpEvMpC7pNFYtL3QAH1Nkh7mccSUKt': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(6).png',
+  '1c6MJXM11vAhl644feng73HDR_sTMK-YW': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(1).png',
+  '1eSHtj1v6KZRYU2LrKMHAvj4yCkKbFi8M': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(4).png',
+  '1tu83lfvBKriQroDOKHnnI7le32-4xTng': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(2).png'
+};
+
+/**
+ * Converts a raw Google Drive filename into a clean, human-readable SEO alt text.
+ */
+export function cleanAltTextFromFileName(fileName) {
+  if (!fileName) return '';
+  let clean = fileName.replace(/\.[a-zA-Z0-9]+$/i, '');
+  clean = clean.replace(/[-_]+/g, ' ');
+  // Ensure space before opening parenthesis e.g. "Escay(5)" -> "Escay (Photo 5)"
+  clean = clean.replace(/(\S)\((\d+)\)/g, '$1 (Photo $2)');
+  clean = clean.replace(/\bvhbc\b/gi, 'VHBC');
+  clean = clean.replace(/\blamudi\b/gi, 'Lamudi');
+  return clean.replace(/\s+/g, ' ').trim();
+}
+
 /**
  * Parses any Google Drive URL into its type, ID, and optional filename
  */
@@ -347,11 +371,15 @@ export async function fetchBlogsFromSheet({ forceRefresh = false } = {}) {
         // Generate clean SEO-friendly name / alt text based on file name or title + caption
         const imageIndex = images.length + 1;
         let fileName = parsed.name || '';
+        if (!fileName && parsed.type === 'file' && parsed.id) {
+          fileName = DRIVE_FILE_NAME_CACHE[parsed.id] || '';
+        }
+
         let cleanAltText = '';
 
         if (fileName) {
-          // Use picture's file name as alt text (clean extension for search crawlers while preserving words)
-          cleanAltText = fileName.replace(/\.[a-zA-Z0-9]+$/i, '').replace(/[-_]+/g, ' ').trim() || fileName;
+          // Use picture's file name as alt text (clean extension, preserve keywords like CEO name for search crawlers)
+          cleanAltText = cleanAltTextFromFileName(fileName);
         } else {
           // SEO-ready fallback derived from Title and Caption
           const captionSnippet = excerpt ? ` - ${excerpt.slice(0, 60).trim()}` : '';
