@@ -18,7 +18,8 @@ const DRIVE_FILE_NAME_CACHE = {
   '1_qFpEvMpC7pNFYtL3QAH1Nkh7mccSUKt': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(6).png',
   '1c6MJXM11vAhl644feng73HDR_sTMK-YW': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(1).png',
   '1eSHtj1v6KZRYU2LrKMHAvj4yCkKbFi8M': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(4).png',
-  '1tu83lfvBKriQroDOKHnnI7le32-4xTng': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(2).png'
+  '1tu83lfvBKriQroDOKHnnI7le32-4xTng': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(2).png',
+  '1L2w2j-Vlv2Nz3wQX3WqJTWYx4n-LCKfg': 'atty adrian carlo escay.png'
 };
 
 /**
@@ -32,6 +33,8 @@ export function cleanAltTextFromFileName(fileName) {
   clean = clean.replace(/(\S)\((\d+)\)/g, '$1 (Photo $2)');
   clean = clean.replace(/\bvhbc\b/gi, 'VHBC');
   clean = clean.replace(/\blamudi\b/gi, 'Lamudi');
+  clean = clean.replace(/\batty\b/gi, 'Atty.');
+  clean = clean.replace(/\badrian carlo escay\b/gi, 'Adrian Carlo Escay');
   return clean.replace(/\s+/g, ' ').trim();
 }
 
