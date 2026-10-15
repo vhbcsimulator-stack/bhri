@@ -7,6 +7,15 @@ import useScrollReveal from '../hooks/useScrollReveal';
 import { useAboutContent } from '../hooks/useContentQueries';
 import useSeo from '../hooks/useSeo';
 
+function toSlug(text, fallback = '') {
+  if (!text) return fallback;
+  return text
+    .toString()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
 export default function AboutPage() {
   const { data: content, isPending, isError, refetch } = useAboutContent();
   const [activeDept, setActiveDept] = useState(1);
@@ -24,14 +33,17 @@ export default function AboutPage() {
   const reasonsToChoose = content?.whyChooseUs?.reasons ?? [];
   const departments = content?.departments?.items ?? [];
 
-  // Generate Person schemas for leadership to boost Google Knowledge Graph and Search Engine Rankings
-  const directorsStructuredData = boardOfDirectors.map((m) => {
+  // Generate Person schemas for leadership with deep section anchor URLs for Google Knowledge Graph
+  const directorsStructuredData = boardOfDirectors.map((m, index) => {
     const rawImg = resolveImage(m);
     const absoluteImg = rawImg && rawImg.startsWith('http')
       ? rawImg
       : (typeof window !== 'undefined' && rawImg ? `${window.location.origin}${rawImg}` : rawImg);
+    const slug = toSlug(m.name, `director-${index}`);
     return {
       '@type': 'Person',
+      '@id': `https://bhri.com.ph/about#${slug}`,
+      'url': `https://bhri.com.ph/about#${slug}`,
       'name': m.name,
       'jobTitle': m.position,
       'description': m.desc,
@@ -43,6 +55,25 @@ export default function AboutPage() {
       }
     };
   });
+
+  // Handle direct section deep-linking from search engines (e.g. #leadership, #atty-adrian-carlo-uy-escay, #core-values)
+  useEffect(() => {
+    if (isPending || typeof window === 'undefined') return;
+    const hash = window.location.hash.replace(/^#/, '').trim();
+    if (!hash) return;
+
+    const timer = setTimeout(() => {
+      const target = document.getElementById(hash) ||
+                     (hash.includes('escay') ? document.querySelector('[id*="escay"]') : null) ||
+                     (hash.includes('leader') || hash.includes('board') ? document.getElementById('leadership') : null) ||
+                     (hash.includes('mission') || hash.includes('vision') ? document.getElementById('mission-vision') : null);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [isPending]);
 
   useSeo({
     title: 'About Us | Leadership & Board of Directors',
@@ -165,7 +196,7 @@ export default function AboutPage() {
 
       <main className="flex-grow">
         {/* About Us */}
-        <section className="px-margin-page py-section-gap max-w-7xl mx-auto flex flex-col md:flex-row-reverse items-center gap-stack-lg">
+        <section id="company-overview" className="px-margin-page py-section-gap max-w-7xl mx-auto flex flex-col md:flex-row-reverse items-center gap-stack-lg scroll-mt-20">
           <div data-reveal="left" className="w-full md:w-1/2 space-y-stack-md">
             <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-primary leading-tight">
               {content.aboutIntro.title}
@@ -188,7 +219,7 @@ export default function AboutPage() {
           </div>
         </section>
         {/* Hero Section */}
-        <section className="px-margin-page py-section-gap max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-stack-lg">
+        <section id="story" className="px-margin-page py-section-gap max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-stack-lg scroll-mt-20">
           <div data-reveal="right" className="w-full md:w-1/2 space-y-stack-md">
             <h1 className="font-display-lg text-display-lg-mobile md:text-display-lg text-primary leading-tight">
               {content.hero.title}
@@ -210,7 +241,7 @@ export default function AboutPage() {
         </section>
 
         {/* Mission & Vision */}
-        <section className="bg-surface-container py-section-gap">
+        <section id="mission-vision" className="bg-surface-container py-section-gap scroll-mt-20">
           <div className="px-margin-page max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-gutter">
             {/* Mission Card */}
             <div data-reveal className="group bg-primary text-on-primary p-12 rounded-xl flex flex-col justify-center space-y-stack-md min-h-[300px] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ease-in-out">
@@ -237,7 +268,7 @@ export default function AboutPage() {
         </section>
 
         {/* Core Narrative / Journey */}
-        <section className="py-section-gap">
+        <section id="ceo" className="py-section-gap scroll-mt-20">
           <div className="px-margin-page max-w-7xl mx-auto flex flex-col md:flex-row-reverse items-center gap-stack-lg">
             <div data-reveal="left" className="w-full md:w-1/2 space-y-stack-md">
               <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-primary leading-tight">
@@ -264,7 +295,7 @@ export default function AboutPage() {
         </section>
 
         {/* Core Commitment */}
-        <section className="bg-surface py-section-gap">
+        <section id="core-commitment" className="bg-surface py-section-gap scroll-mt-20">
           <div className="px-margin-page max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-stack-lg">
             <div data-reveal="right" className="w-full md:w-1/2 space-y-stack-md">
               <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-primary leading-tight">
@@ -290,7 +321,7 @@ export default function AboutPage() {
         </section>
 
         {/* Board of Directors */}
-        <section className="bg-surface-container py-section-gap">
+        <section id="leadership" className="bg-surface-container py-section-gap scroll-mt-20">
           <div className="px-margin-page max-w-7xl mx-auto">
             <div data-reveal className="text-center max-w-2xl mx-auto mb-stack-lg space-y-stack-sm">
               <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-primary">{content.board.title}</h2>
@@ -298,48 +329,52 @@ export default function AboutPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
-              {boardOfDirectors.map((member, index) => (
-                <article
-                  key={index}
-                  itemScope
-                  itemType="https://schema.org/Person"
-                  data-reveal
-                  style={{ '--reveal-delay': `${index * 120}ms` }}
-                  className="group bg-surface border border-outline-variant rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/40 transition-all duration-300 ease-in-out"
-                >
-                  <meta itemProp="name" content={member.name} />
-                  <meta itemProp="jobTitle" content={member.position} />
-                  <meta itemProp="worksFor" content="Bright Hermosa Realty Inc." />
-                  <meta itemProp="description" content={member.desc} />
-                  <meta itemProp="url" content="https://bhri.com.ph/about" />
+              {boardOfDirectors.map((member, index) => {
+                const slug = toSlug(member.name, `director-${index}`);
+                return (
+                  <article
+                    key={index}
+                    id={slug}
+                    itemScope
+                    itemType="https://schema.org/Person"
+                    data-reveal
+                    style={{ '--reveal-delay': `${index * 120}ms` }}
+                    className="group bg-surface border border-outline-variant rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1.5 hover:border-primary/40 transition-all duration-300 ease-in-out scroll-mt-28"
+                  >
+                    <meta itemProp="name" content={member.name} />
+                    <meta itemProp="jobTitle" content={member.position} />
+                    <meta itemProp="worksFor" content="Bright Hermosa Realty Inc." />
+                    <meta itemProp="description" content={member.desc} />
+                    <meta itemProp="url" content={`https://bhri.com.ph/about#${slug}`} />
 
-                  <div className="relative w-full h-80 overflow-hidden bg-gradient-to-b from-primary/10 via-primary/5 to-surface-container-low">
-                    {/* Soft floor shadow under the cutout */}
-                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1/2 h-5 bg-primary/30 rounded-full blur-lg transition-all duration-500 group-hover:w-3/5 group-hover:bg-primary/40"></div>
-                    <img
-                      itemProp="image"
-                      className="absolute inset-0 h-full w-full object-contain object-bottom px-6 pt-6 drop-shadow-[0_16px_24px_rgba(0,0,0,0.28)] transition-transform duration-500 ease-out group-hover:scale-[1.04]"
-                      src={resolveImage(member)}
-                      alt={member.name}
-                      title={`${member.name} - ${member.position} | Bright Hermosa Realty Inc.`}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </div>
-                  <div className="relative p-6 pt-5 space-y-2 border-t border-outline-variant/40">
-                    <span className="block w-10 h-0.5 rounded-full bg-secondary transition-all duration-500 ease-out group-hover:w-16"></span>
-                    <h3 itemProp="name" className="font-subhead-lg text-subhead-lg text-primary">{member.name}</h3>
-                    <p itemProp="jobTitle" className="font-label-caps text-label-caps text-secondary uppercase tracking-wide">{member.position}</p>
-                    <p itemProp="description" className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed pt-1">{member.desc}</p>
-                  </div>
-                </article>
-              ))}
+                    <div className="relative w-full h-80 overflow-hidden bg-gradient-to-b from-primary/10 via-primary/5 to-surface-container-low">
+                      {/* Soft floor shadow under the cutout */}
+                      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1/2 h-5 bg-primary/30 rounded-full blur-lg transition-all duration-500 group-hover:w-3/5 group-hover:bg-primary/40"></div>
+                      <img
+                        itemProp="image"
+                        className="absolute inset-0 h-full w-full object-contain object-bottom px-6 pt-6 drop-shadow-[0_16px_24px_rgba(0,0,0,0.28)] transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+                        src={resolveImage(member)}
+                        alt={member.name}
+                        title={`${member.name} - ${member.position} | Bright Hermosa Realty Inc.`}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="relative p-6 pt-5 space-y-2 border-t border-outline-variant/40">
+                      <span className="block w-10 h-0.5 rounded-full bg-secondary transition-all duration-500 ease-out group-hover:w-16"></span>
+                      <h3 itemProp="name" className="font-subhead-lg text-subhead-lg text-primary">{member.name}</h3>
+                      <p itemProp="jobTitle" className="font-label-caps text-label-caps text-secondary uppercase tracking-wide">{member.position}</p>
+                      <p itemProp="description" className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed pt-1">{member.desc}</p>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </div>
         </section>
 
         {/* Company Departments */}
-        <section className="bg-surface py-section-gap overflow-hidden border-t border-b border-outline-variant/30">
+        <section id="departments" className="bg-surface py-section-gap overflow-hidden border-t border-b border-outline-variant/30 scroll-mt-20">
           <div className="max-w-7xl mx-auto px-margin-page">
             <div data-reveal className="text-center max-w-2xl mx-auto mb-12 space-y-stack-sm">
               <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-primary">
@@ -450,7 +485,7 @@ export default function AboutPage() {
         </section>
 
         {/* Our Office */}
-        <section className="px-margin-page py-section-gap max-w-7xl mx-auto">
+        <section id="offices" className="px-margin-page py-section-gap max-w-7xl mx-auto scroll-mt-20">
           <div data-reveal className="text-center max-w-2xl mx-auto mb-stack-lg space-y-stack-sm">
             <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-primary">{content.offices.title}</h2>
             <p className="font-body-lg text-body-lg text-on-surface-variant">{content.offices.subtitle}</p>
@@ -513,7 +548,7 @@ export default function AboutPage() {
         </section>
 
         {/* Company Events */}
-        <section className="bg-surface-container-low py-section-gap">
+        <section id="company-events" className="bg-surface-container-low py-section-gap scroll-mt-20">
           <div className="px-margin-page max-w-7xl mx-auto">
             <div data-reveal className="text-center max-w-2xl mx-auto mb-stack-lg space-y-stack-sm">
               <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-primary">{content.events.title}</h2>

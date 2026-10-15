@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import useScrollReveal from '../hooks/useScrollReveal';
@@ -103,9 +103,47 @@ export default function BlogsPage() {
     );
   }, [blogs, searchQuery]);
 
+  // Handle direct section / deep-link navigation from Google or shared links (e.g. /blogs#blog-0)
+  useEffect(() => {
+    if (loading || !blogs || blogs.length === 0 || typeof window === 'undefined') return;
+    const rawHash = window.location.hash.replace(/^#/, '').trim();
+    if (!rawHash) return;
+
+    // Find blog by exact id, or by title slug match
+    const matched = blogs.find(
+      (b) => b.id.toLowerCase() === rawHash.toLowerCase() ||
+             (b.title && b.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').includes(rawHash.toLowerCase()))
+    );
+
+    if (matched) {
+      setActiveModalBlog(matched);
+      const timer = setTimeout(() => {
+        const el = document.getElementById(matched.id);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [blogs, loading]);
+
+  const handleOpenBlog = (blog) => {
+    setActiveModalBlog(blog);
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      window.history.replaceState(null, '', `#${blog.id}`);
+    }
+  };
+
+  const handleCloseBlog = () => {
+    setActiveModalBlog(null);
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  };
+
   const handleCopyShare = (blog, e) => {
     e.stopPropagation();
-    const shareUrl = window.location.href.split('#')[0] + `#${blog.id}`;
+    const shareUrl = `${window.location.origin}/blogs#${blog.id}`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(shareUrl);
       setCopiedId(blog.id);
@@ -250,7 +288,7 @@ export default function BlogsPage() {
                     itemType="https://schema.org/BlogPosting"
                     data-reveal
                     style={{ '--reveal-delay': `${(index % 6) * 100}ms` }}
-                    className="group bg-surface rounded-2xl border border-outline-variant/50 hover:border-primary/40 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between"
+                    className="group bg-surface rounded-2xl border border-outline-variant/50 hover:border-primary/40 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between scroll-mt-28"
                   >
                     <meta itemProp="headline" content={blog.title} />
                     <meta itemProp="datePublished" content={blog.date} />
@@ -297,7 +335,7 @@ export default function BlogsPage() {
                       {/* Content Body */}
                       <div className="p-6 space-y-3">
                         <h2
-                          onClick={() => setActiveModalBlog(blog)}
+                          onClick={() => handleOpenBlog(blog)}
                           className="font-subhead-lg font-bold text-lg text-primary group-hover:text-secondary transition-colors cursor-pointer line-clamp-2"
                         >
                           {blog.title}
@@ -312,7 +350,7 @@ export default function BlogsPage() {
                     {/* Card Actions Footer */}
                     <div className="px-6 pb-6 pt-2 border-t border-outline-variant/20 flex items-center justify-between">
                       <button
-                        onClick={() => setActiveModalBlog(blog)}
+                        onClick={() => handleOpenBlog(blog)}
                         className="inline-flex items-center gap-1 text-primary text-xs font-bold hover:text-secondary transition-colors cursor-pointer"
                       >
                         Read Full Story
@@ -345,14 +383,14 @@ export default function BlogsPage() {
       {activeModalBlog && (
         <div
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn"
-          onClick={() => setActiveModalBlog(null)}
+          onClick={handleCloseBlog}
         >
           <div
             className="bg-surface rounded-2xl border border-outline-variant max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-6 relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={() => setActiveModalBlog(null)}
+              onClick={handleCloseBlog}
               className="absolute top-4 right-4 p-2 rounded-full hover:bg-surface-container text-outline hover:text-on-surface transition-colors cursor-pointer"
               aria-label="Close"
             >
