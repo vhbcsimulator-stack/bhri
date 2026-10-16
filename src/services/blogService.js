@@ -11,15 +11,43 @@ let cachedBlogs = null;
 let lastFetchTime = 0;
 const CACHE_TTL = 30 * 1000; // 30 seconds
 
-// Pre-resolved metadata cache for Google Drive image file names (improves SEO & Google Image search rankings for CEO)
-const DRIVE_FILE_NAME_CACHE = {
-  '11ZpZfZQGM1ldDLRu6LMvA0_sTs-eFpd8': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(5).png',
-  '1VFv4n5JhpfN6h2mKFZ4ie3lCFIT589IG': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay.png',
-  '1_qFpEvMpC7pNFYtL3QAH1Nkh7mccSUKt': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(6).png',
-  '1c6MJXM11vAhl644feng73HDR_sTMK-YW': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(1).png',
-  '1eSHtj1v6KZRYU2LrKMHAvj4yCkKbFi8M': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(4).png',
-  '1tu83lfvBKriQroDOKHnnI7le32-4xTng': 'vhbc-lamudi partnership with Atty Adrian Carlo Escay(2).png',
-  '1L2w2j-Vlv2Nz3wQX3WqJTWYx4n-LCKfg': 'atty adrian carlo escay.png'
+// Pre-resolved metadata cache for Google Drive images (improves SEO & Google Image search rankings for CEO, Company, and Partners)
+export const DRIVE_IMAGE_SEO_METADATA = {
+  '11ZpZfZQGM1ldDLRu6LMvA0_sTs-eFpd8': {
+    title: 'VHBC and Lamudi Philippines Partnership Agreement Signing with Atty. Adrian Carlo Escay',
+    caption: 'Atty. Adrian Carlo Escay and Lamudi Philippines executive formalizing real estate development partnership.',
+    alt: 'Atty. Adrian Carlo Escay President and CEO of VHBC and Bright Hermosa Realty at Lamudi Philippines partnership signing'
+  },
+  '1VFv4n5JhpfN6h2mKFZ4ie3lCFIT589IG': {
+    title: 'VHBC Strategic Digital Presence Partnership with Lamudi Philippines',
+    caption: 'Official partnership ceremony between VHermosa Bright Corporation and Lamudi Philippines.',
+    alt: 'VHermosa Bright Corporation and Lamudi Philippines strategic partnership contract signing with Atty. Adrian Carlo Escay'
+  },
+  '1_qFpEvMpC7pNFYtL3QAH1Nkh7mccSUKt': {
+    title: 'VHBC and Lamudi Philippines Delegation and Real Estate Leaders',
+    caption: 'Executive delegation of VHBC and Lamudi Philippines celebrating digital real estate collaboration.',
+    alt: 'VHBC and Lamudi Philippines executive team celebrating nationwide real estate marketplace partnership'
+  },
+  '1c6MJXM11vAhl644feng73HDR_sTMK-YW': {
+    title: 'Atty. Adrian Carlo Escay Signing Partnership Document with Lamudi Philippines',
+    caption: 'Atty. Adrian Carlo Escay formalizing digital marketing and real estate distribution contract.',
+    alt: 'Atty. Adrian Carlo Escay President and CEO of VHBC signing official partnership contract with Lamudi Philippines'
+  },
+  '1eSHtj1v6KZRYU2LrKMHAvj4yCkKbFi8M': {
+    title: 'VHBC Executive Team and Lamudi Leadership Partnership Group Photo',
+    caption: 'Group photo of VHermosa Bright Corporation management and Lamudi Philippines representatives.',
+    alt: 'VHermosa Bright Corporation executive team with Lamudi Philippines leaders at real estate partnership launch'
+  },
+  '1tu83lfvBKriQroDOKHnnI7le32-4xTng': {
+    title: 'VHBC and Lamudi Philippines Handshake Formalizing Partnership',
+    caption: 'Handshake between Atty. Adrian Carlo Escay and Lamudi Philippines leadership.',
+    alt: 'Atty. Adrian Carlo Escay shaking hands with Lamudi Philippines executive at partnership agreement ceremony'
+  },
+  '1L2w2j-Vlv2Nz3wQX3WqJTWYx4n-LCKfg': {
+    title: 'Atty. Adrian Carlo Escay - President and Chief Executive Officer',
+    caption: 'Official executive portrait of Atty. Adrian Carlo Escay, President and CEO of VHermosa Bright Corporation (VHBC) and Bright Hermosa Realty.',
+    alt: 'Atty. Adrian Carlo Escay President and Chief Executive Officer of VHermosa Bright Corporation and Bright Hermosa Realty Inc.'
+  }
 };
 
 /**
@@ -31,8 +59,8 @@ export function cleanAltTextFromFileName(fileName) {
   clean = clean.replace(/[-_]+/g, ' ');
   // Ensure space before opening parenthesis e.g. "Escay(5)" -> "Escay (Photo 5)"
   clean = clean.replace(/(\S)\((\d+)\)/g, '$1 (Photo $2)');
-  clean = clean.replace(/\bvhbc\b/gi, 'VHBC');
-  clean = clean.replace(/\blamudi\b/gi, 'Lamudi');
+  clean = clean.replace(/\bvhbc\b/gi, 'VHermosa Bright Corporation (VHBC)');
+  clean = clean.replace(/\blamudi\b/gi, 'Lamudi Philippines');
   clean = clean.replace(/\batty\b/gi, 'Atty.');
   clean = clean.replace(/\badrian carlo escay\b/gi, 'Adrian Carlo Escay');
   return clean.replace(/\s+/g, ' ').trim();
@@ -156,11 +184,15 @@ export function parseDriveUrl(url) {
 }
 
 /**
- * Returns a high-resolution Google CDN direct image URL from a file ID
+ * Returns a high-resolution, WebP-compressed Google CDN direct image URL from a file ID.
+ * Supports on-the-fly resizing and WebP conversion via Fife CDN parameters.
  */
-export function getDriveDirectImageUrl(fileId) {
+export function getDriveDirectImageUrl(fileId, options = {}) {
   if (!fileId) return '';
-  return `https://lh3.googleusercontent.com/d/${fileId}`;
+  const { width = 1200, webp = true, raw = false } = options;
+  if (raw) return `https://lh3.googleusercontent.com/d/${fileId}`;
+  const param = `=w${width}${webp ? '-rw' : ''}`;
+  return `https://lh3.googleusercontent.com/d/${fileId}${param}`;
 }
 
 /**
@@ -310,24 +342,35 @@ export async function fetchBlogsFromSheet({ forceRefresh = false } = {}) {
       // Skip completely blank rows
       if (!rawDriveLink && !rawTitle && !rawCaption) continue;
 
-      // Format Date string accurately from Sheet
+      // Format Date string accurately from Sheet + compute ISO date for Search Engine schemas
       let displayDate = '';
+      let isoDate = '';
       if (rawDateCell) {
         if (rawDateCell.f && typeof rawDateCell.f === 'string' && rawDateCell.f.trim()) {
           displayDate = rawDateCell.f.trim();
-        } else if (rawDateCell.v) {
+        }
+        if (rawDateCell.v) {
           const vStr = String(rawDateCell.v).trim();
           const gvizMatch = vStr.match(/Date\((\d+),(\d+),(\d+)/);
           if (gvizMatch) {
-            const d = new Date(parseInt(gvizMatch[1]), parseInt(gvizMatch[2]), parseInt(gvizMatch[3]));
+            const y = parseInt(gvizMatch[1], 10);
+            const m = parseInt(gvizMatch[2], 10);
+            const dNum = parseInt(gvizMatch[3], 10);
+            const d = new Date(y, m, dNum);
             if (!isNaN(d.getTime())) {
-              displayDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              if (!displayDate) {
+                displayDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              }
+              isoDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(dNum).padStart(2, '0')}`;
             }
           } else {
             const parsedD = new Date(vStr);
             if (!isNaN(parsedD.getTime()) && !/^\d+$/.test(vStr)) {
-              displayDate = parsedD.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            } else {
+              if (!displayDate) {
+                displayDate = parsedD.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              }
+              isoDate = parsedD.toISOString().split('T')[0];
+            } else if (!displayDate) {
               displayDate = vStr;
             }
           }
@@ -335,11 +378,19 @@ export async function fetchBlogsFromSheet({ forceRefresh = false } = {}) {
       }
 
       if (!displayDate) {
-        displayDate = new Date(Date.now() - (rows.length - i) * 86400000).toLocaleDateString('en-US', {
+        const fallbackD = new Date(Date.now() - (rows.length - i) * 86400000);
+        displayDate = fallbackD.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
           year: 'numeric'
         });
+        isoDate = fallbackD.toISOString().split('T')[0];
+      }
+      if (!isoDate && displayDate) {
+        const parsedFallback = new Date(displayDate);
+        if (!isNaN(parsedFallback.getTime())) {
+          isoDate = parsedFallback.toISOString().split('T')[0];
+        }
       }
 
       // Determine display title and excerpt first so images can use them for contextual alt text
@@ -374,27 +425,40 @@ export async function fetchBlogsFromSheet({ forceRefresh = false } = {}) {
         // Generate clean SEO-friendly name / alt text based on file name or title + caption
         const imageIndex = images.length + 1;
         let fileName = parsed.name || '';
-        if (!fileName && parsed.type === 'file' && parsed.id) {
-          fileName = DRIVE_FILE_NAME_CACHE[parsed.id] || '';
-        }
+        const cachedMeta = parsed.id ? DRIVE_IMAGE_SEO_METADATA[parsed.id] : null;
 
         let cleanAltText = '';
+        let imageTitle = '';
+        let imageCaption = '';
 
-        if (fileName) {
-          // Use picture's file name as alt text (clean extension, preserve keywords like CEO name for search crawlers)
+        if (cachedMeta) {
+          imageTitle = cachedMeta.title;
+          cleanAltText = cachedMeta.alt;
+          imageCaption = cachedMeta.caption;
+        } else if (fileName) {
           cleanAltText = cleanAltTextFromFileName(fileName);
+          imageTitle = cleanAltText;
+          imageCaption = excerpt ? excerpt.slice(0, 140).trim() : cleanAltText;
         } else {
-          // SEO-ready fallback derived from Title and Caption
-          const captionSnippet = excerpt ? ` - ${excerpt.slice(0, 60).trim()}` : '';
-          cleanAltText = `${title}${captionSnippet}${images.length > 0 ? ` (Photo ${imageIndex})` : ''}`;
+          const captionSnippet = excerpt ? ` - ${excerpt.slice(0, 70).trim()}` : '';
+          imageTitle = `${title}${images.length > 0 ? ` (Photo ${imageIndex})` : ''}`;
+          cleanAltText = `${title}${captionSnippet} | Bright Hermosa Realty Inc.`;
+          imageCaption = excerpt ? excerpt.slice(0, 140).trim() : title;
         }
+
+        // Ensure title and clean names strip raw extensions like .png or .jpg
+        imageTitle = imageTitle.replace(/\.[a-zA-Z0-9]+$/i, '').trim();
 
         if (parsed.type === 'file') {
           images.push({
             id: parsed.id,
-            url: getDriveDirectImageUrl(parsed.id),
-            thumbnailUrl: getDriveDirectImageUrl(parsed.id),
-            name: fileName || cleanAltText,
+            url: getDriveDirectImageUrl(parsed.id, { width: 1600, webp: true }),
+            thumbnailUrl: getDriveDirectImageUrl(parsed.id, { width: 800, webp: true }),
+            previewUrl: getDriveDirectImageUrl(parsed.id, { width: 320, webp: true }),
+            rawUrl: getDriveDirectImageUrl(parsed.id, { raw: true }),
+            name: imageTitle,
+            title: imageTitle,
+            caption: imageCaption,
             fileName: fileName,
             altText: cleanAltText
           });
@@ -403,7 +467,11 @@ export async function fetchBlogsFromSheet({ forceRefresh = false } = {}) {
             id: 'direct-' + images.length,
             url: parsed.url,
             thumbnailUrl: parsed.url,
-            name: fileName || cleanAltText,
+            previewUrl: parsed.url,
+            rawUrl: parsed.url,
+            name: imageTitle,
+            title: imageTitle,
+            caption: imageCaption,
             fileName: fileName,
             altText: cleanAltText
           });
@@ -420,10 +488,13 @@ export async function fetchBlogsFromSheet({ forceRefresh = false } = {}) {
           images = folderImgs.map((f, fIdx) => {
             const rawName = f.name || `${title} - Image ${fIdx + 1}`;
             const cleanAlt = rawName.replace(/\.[a-zA-Z0-9]+$/i, '').replace(/[-_]+/g, ' ').trim();
+            const fullAlt = `${cleanAlt} | Bright Hermosa Realty Inc.`;
             return {
               ...f,
-              name: rawName,
-              altText: cleanAlt
+              name: cleanAlt,
+              title: cleanAlt,
+              caption: `${title} - Photo ${fIdx + 1}`,
+              altText: fullAlt
             };
           });
         }
@@ -439,7 +510,8 @@ export async function fetchBlogsFromSheet({ forceRefresh = false } = {}) {
         isFolder,
         folderId,
         images,
-        date: displayDate
+        date: displayDate,
+        isoDate: isoDate || '2026-09-24'
       });
     }
 

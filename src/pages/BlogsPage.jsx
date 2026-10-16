@@ -19,10 +19,11 @@ export default function BlogsPage() {
   const seoConfig = useMemo(() => {
     if (activeModalBlog) {
       const primaryImg = activeModalBlog.images?.[0]?.url;
+      const allImages = activeModalBlog.images?.map((img) => img.url) || [];
       return {
         title: activeModalBlog.title,
         description: activeModalBlog.excerpt || activeModalBlog.caption.slice(0, 160),
-        keywords: `${activeModalBlog.title}, Bright Hermosa Realty news, BHRI blog, Cavite Batangas real estate`,
+        keywords: `${activeModalBlog.title}, Bright Hermosa Realty news, BHRI blog, Cavite Batangas real estate, Atty. Adrian Carlo Escay, VHBC`,
         image: primaryImg,
         url: typeof window !== 'undefined' ? `${window.location.origin}/blogs#${activeModalBlog.id}` : undefined,
         type: 'article',
@@ -31,9 +32,10 @@ export default function BlogsPage() {
           '@type': 'BlogPosting',
           headline: activeModalBlog.title,
           description: activeModalBlog.excerpt || activeModalBlog.caption.slice(0, 160),
-          datePublished: activeModalBlog.date,
+          datePublished: activeModalBlog.isoDate || activeModalBlog.date,
+          dateModified: activeModalBlog.isoDate || activeModalBlog.date,
           url: typeof window !== 'undefined' ? `${window.location.origin}/blogs#${activeModalBlog.id}` : undefined,
-          image: activeModalBlog.images?.map((img) => img.url) || [],
+          image: allImages,
           author: {
             '@type': 'Organization',
             name: 'Bright Hermosa Realty Inc.',
@@ -44,7 +46,7 @@ export default function BlogsPage() {
             name: 'Bright Hermosa Realty Inc.',
             logo: {
               '@type': 'ImageObject',
-              url: 'https://bhri.com.ph/favicon.png'
+              url: 'https://bhri.com.ph/logo.png'
             }
           }
         }
@@ -53,15 +55,15 @@ export default function BlogsPage() {
 
     const latestStories = blogs.map((b) => b.title).slice(0, 3).join('. ');
     const desc = latestStories
-      ? `${latestStories}. Stay updated with the latest community milestones and project announcements from Bright Hermosa Realty.`
+      ? `${latestStories}. Stay updated with the latest community milestones, partnership news, and project announcements from Bright Hermosa Realty.`
       : 'Stay updated with the latest happenings, community milestones, event photos, and property development stories directly from Bright Hermosa Realty.';
 
-    const topImg = blogs?.[0]?.images?.[0]?.url;
+    const topImg = blogs?.[0]?.images?.[0]?.url || 'https://lh3.googleusercontent.com/d/11ZpZfZQGM1ldDLRu6LMvA0_sTs-eFpd8=w1200-rw';
 
     return {
       title: 'Blogs & Latest News',
       description: desc,
-      keywords: 'Bright Hermosa blogs, BHRI news, Cavite farm community updates, Batangas real estate news, East West Breeze updates',
+      keywords: 'Bright Hermosa blogs, BHRI news, Cavite farm community updates, Batangas real estate news, East West Breeze updates, Atty. Adrian Carlo Escay, VHBC Lamudi partnership',
       image: topImg,
       url: typeof window !== 'undefined' ? `${window.location.origin}/blogs` : undefined,
       type: 'website',
@@ -76,16 +78,17 @@ export default function BlogsPage() {
           name: 'Bright Hermosa Realty Inc.',
           logo: {
             '@type': 'ImageObject',
-            url: 'https://bhri.com.ph/favicon.png'
+            url: 'https://bhri.com.ph/logo.png'
           }
         },
         blogPost: blogs.map((b) => ({
           '@type': 'BlogPosting',
           headline: b.title,
           description: b.excerpt,
-          datePublished: b.date,
+          datePublished: b.isoDate || b.date,
+          dateModified: b.isoDate || b.date,
           url: typeof window !== 'undefined' ? `${window.location.origin}/blogs#${b.id}` : `https://bhri.com.ph/blogs#${b.id}`,
-          image: b.images?.[0]?.url || undefined
+          image: b.images && b.images.length > 0 ? b.images.map((img) => img.url) : undefined
         }))
       }
     };
@@ -278,7 +281,8 @@ export default function BlogsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredBlogs.map((blog, index) => {
                 const hasImages = blog.images && blog.images.length > 0;
-                const primaryImage = hasImages ? blog.images[0].url : null;
+                const primaryImage = hasImages ? (blog.images[0].thumbnailUrl || blog.images[0].url) : null;
+                const primaryHighRes = hasImages ? blog.images[0].url : null;
 
                 return (
                   <article
@@ -291,8 +295,13 @@ export default function BlogsPage() {
                     className="group bg-surface rounded-2xl border border-outline-variant/50 hover:border-primary/40 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between scroll-mt-28"
                   >
                     <meta itemProp="headline" content={blog.title} />
-                    <meta itemProp="datePublished" content={blog.date} />
+                    <meta itemProp="datePublished" content={blog.isoDate || blog.date} />
+                    <meta itemProp="dateModified" content={blog.isoDate || blog.date} />
                     <meta itemProp="description" content={blog.excerpt} />
+                    {/* Index every image for Google Image Search crawlers */}
+                    {blog.images?.map((img, imgIdx) => (
+                      <meta key={imgIdx} itemProp="image" content={img.url} />
+                    ))}
                     <div>
                       {/* Image Thumbnail Container */}
                       <div className="relative h-64 w-full bg-surface-container overflow-hidden">
@@ -300,16 +309,17 @@ export default function BlogsPage() {
                           <>
                             <img
                               src={primaryImage}
-                              alt={blog.images[0]?.altText || blog.images[0]?.name || `${blog.title} - Bright Hermosa Realty`}
-                              title={blog.images[0]?.name || blog.title}
-                              loading="lazy"
+                              alt={blog.images[0]?.altText || `${blog.title} | Bright Hermosa Realty Inc.`}
+                              title={blog.images[0]?.title || blog.images[0]?.name || blog.title}
+                              loading={index === 0 ? "eager" : "lazy"}
+                              fetchpriority={index === 0 ? "high" : "auto"}
                               decoding="async"
                               itemProp="image"
-                              onClick={() => setLightboxImage({ url: primaryImage, caption: blog.caption, alt: blog.images[0]?.altText || blog.title })}
+                              onClick={() => setLightboxImage({ url: primaryHighRes, caption: blog.caption, alt: blog.images[0]?.altText || blog.title })}
                               className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105 cursor-pointer"
                             />
                             {blog.images.length > 1 && (
-                              <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1 font-medium shadow-md">
+                              <div className="absolute bottom-3 right-3 bg-black/75 backdrop-blur-md text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1 font-medium shadow-md">
                                 <span className="material-symbols-outlined text-sm">photo_library</span>
                                 {blog.images.length} photos
                               </div>
@@ -331,6 +341,52 @@ export default function BlogsPage() {
                           {blog.date}
                         </div>
                       </div>
+
+                      {/* Related Images Gallery Strip - Exposes ALL photos to Google Search & visitors */}
+                      {blog.images && blog.images.length > 1 && (
+                        <div className="flex items-center gap-2 px-4 py-2.5 bg-surface-container-low/70 border-b border-outline-variant/30 overflow-x-auto scrollbar-none">
+                          {blog.images.slice(0, 5).map((img, photoIdx) => (
+                            <figure
+                              key={photoIdx}
+                              itemScope
+                              itemType="https://schema.org/ImageObject"
+                              className="relative w-12 h-12 rounded-lg overflow-hidden border border-outline-variant/40 shrink-0 cursor-pointer hover:border-primary transition-colors m-0 group/thumb"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLightboxImage({
+                                  url: img.url,
+                                  caption: img.caption || blog.caption,
+                                  alt: img.altText || img.name
+                                });
+                              }}
+                            >
+                              <img
+                                src={img.previewUrl || img.thumbnailUrl || img.url}
+                                alt={img.altText || `${blog.title} - Photo ${photoIdx + 1}`}
+                                title={img.title || img.name}
+                                loading="lazy"
+                                decoding="async"
+                                itemProp="contentUrl"
+                                className="w-full h-full object-cover group-hover/thumb:scale-110 transition-transform duration-300"
+                              />
+                              <meta itemProp="name" content={img.title || img.name} />
+                              <meta itemProp="caption" content={img.caption || img.altText} />
+                            </figure>
+                          ))}
+                          {blog.images.length > 5 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenBlog(blog);
+                              }}
+                              className="text-[11px] font-bold text-primary px-2 py-1 bg-surface rounded-md border border-outline-variant shrink-0 hover:bg-primary hover:text-on-primary transition-colors cursor-pointer"
+                            >
+                              +{blog.images.length - 5}
+                            </button>
+                          )}
+                        </div>
+                      )}
 
                       {/* Content Body */}
                       <div className="p-6 space-y-3">
@@ -416,23 +472,24 @@ export default function BlogsPage() {
                       itemScope
                       itemType="https://schema.org/ImageObject"
                       className="relative h-48 sm:h-56 rounded-xl overflow-hidden bg-surface-container border border-outline-variant/30 cursor-pointer group m-0"
-                      onClick={() => setLightboxImage({ url: img.url, caption: activeModalBlog.caption, alt: img.altText || img.name })}
+                      onClick={() => setLightboxImage({ url: img.url, caption: img.caption || activeModalBlog.caption, alt: img.altText || img.name, title: img.title || img.name })}
                     >
                       <img
                         src={img.url}
-                        alt={img.altText || img.name || `${activeModalBlog.title} - Photo ${i + 1}`}
-                        title={img.name || `${activeModalBlog.title} - Photo ${i + 1}`}
+                        alt={img.altText || `${activeModalBlog.title} - Photo ${i + 1} | Bright Hermosa Realty Inc.`}
+                        title={img.title || img.name || `${activeModalBlog.title} - Photo ${i + 1}`}
                         loading="lazy"
                         decoding="async"
                         itemProp="contentUrl"
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />
-                      <meta itemProp="name" content={img.name || `${activeModalBlog.title} - Photo ${i + 1}`} />
+                      <meta itemProp="name" content={img.title || img.name || `${activeModalBlog.title} - Photo ${i + 1}`} />
+                      <meta itemProp="caption" content={img.caption || img.altText} />
                       <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <span className="material-symbols-outlined text-white text-2xl">zoom_in</span>
                       </div>
                       <figcaption className="sr-only">
-                        {img.altText || img.name || `${activeModalBlog.title} - Photo ${i + 1}`}
+                        {img.caption || img.altText || `${activeModalBlog.title} - Photo ${i + 1}`}
                       </figcaption>
                     </figure>
                   ))}
@@ -477,8 +534,8 @@ export default function BlogsPage() {
 
           <img
             src={lightboxImage.url}
-            alt={lightboxImage.alt || 'Full Resolution Image Preview'}
-            title={lightboxImage.alt || 'Full Resolution Image Preview'}
+            alt={lightboxImage.alt || 'Bright Hermosa Realty High-Resolution Media Preview'}
+            title={lightboxImage.title || lightboxImage.alt || 'Bright Hermosa Realty Inc.'}
             loading="eager"
             decoding="async"
             className="max-h-[85vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
